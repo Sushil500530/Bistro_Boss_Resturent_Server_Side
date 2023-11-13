@@ -26,15 +26,57 @@ async function run() {
     // await client.connect();
     await client.db("admin").command({ ping: 1 });
 
+    const menuCollection = client.db('bistroDB').collection('menu');
+    const reviewCollection = client.db('bistroDB').collection('reviews');
+    const cartCollection = client.db('bistroDB').collection('carts');
+
+    app.get('/menu', async (req, res) => {
+      try {
+        const result = await menuCollection.find().toArray()
+        res.send(result)
+      }
+      catch (error) {
+        console.log(error);
+      }
+    })
+    app.get('/reviews', async (req, res) => {
+      try {
+        const result = await reviewCollection.find().toArray()
+        res.send(result)
+      }
+      catch (error) {
+        console.log(error);
+      }
+    })
+
+    // cart collection 
+    app.get('/carts', async (req, res) => {
+      try {
+        const email = req.query.email;
+        const query = {email:email}
+        const result = await cartCollection.find(query).toArray();
+        res.send(result);
+      }
+      catch (err) {
+        console.log(err);
+      }
+    })
+
+    app.post('/carts', async (req, res) => {
+      try {
+        const cartItem = req.body;
+        const result = await cartCollection.insertOne(cartItem);
+        res.send(result)
+      }
+      catch (error) {
+        console.error(error);
+      }
+    })
 
 
 
 
 
-
-
-
-    
     console.log("Pinged your deployment. You successfully connected to MongoDB!");
   } finally {
     // await client.close();
@@ -44,10 +86,27 @@ run().catch(console.dir);
 
 
 
-app.get('/', (req,res) => {
-    res.send("Birstro Boss Resturent is Running.....")
+app.get('/', (req, res) => {
+  res.send("Birstro Boss Resturent is Running.....")
 })
 
 app.listen(port, () => {
-    console.log(`Bistro Boss Resturent is Running on Port : ${port}`);
+  console.log(`Bistro Boss Resturent is Running on Port : ${port}`);
 })
+
+/****
+ * ----------------------------------
+ *  NAMING CONVENTION
+ * --------------------------------
+ *  crud operation korar jonno ja ja korar lagbe segulo holo ---------------
+ * ------------------------------
+ * app.get('/users)
+ * app.get('/users/:id)
+ * app.post(/users)
+ * app.put('/users/:id)
+ * app.patch('/users/:id)
+ * app.delete('/users/:id)
+ * 
+ * 
+ * 
+ */
