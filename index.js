@@ -184,6 +184,7 @@ async function run() {
         console.log(error);
       }
     })
+
     app.get('/reviews', async (req, res) => {
       try {
         const result = await reviewCollection.find().toArray()
@@ -193,16 +194,53 @@ async function run() {
         console.log(error);
       }
     })
-    app.post('/menu', verifyToken, verfyAdmin, async(req,res) => {
+
+    app.get('/menu/:id', async(req,res) => {
       try{
-        const menuItem = req.body;
-        const result = await menuCollection.insertOne(menuItem);
+        const id = req.params.id;
+        const query = {_id: new ObjectId(id)};
+        const result = await menuCollection.findOne(query);
         res.send(result)
       }
       catch(err){
         console.log(err);
       }
     })
+
+
+    app.post('/menu', verifyToken, verfyAdmin, async (req, res) => {
+      try {
+        const menuItem = req.body;
+        const result = await menuCollection.insertOne(menuItem);
+        res.send(result)
+      }
+      catch (err) {
+        console.log(err);
+      }
+    })
+
+    app.patch('/menu/:id', async(req,res) => {
+      try{
+        const 
+      }
+      catch(error){
+        console.log(error);
+      }
+    })
+
+    app.delete('/menu/:id', verifyToken, verfyAdmin, async (req, res) => {
+      try {
+        const id = req.params.id;
+        const query = { _id: new ObjectId(id) };
+        console.log(query);
+        const result = await menuCollection.deleteOne(query);
+        res.send(result)
+      }
+      catch (error) {
+        console.log(error);
+      }
+    })
+
 
     // cart collection 
     app.get('/carts', async (req, res) => {
