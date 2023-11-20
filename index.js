@@ -108,7 +108,7 @@ async function run() {
     app.get('/users/admin/:email', verifyToken, async (req, res) => {
       try {
         const email = req.params.email;
-        console.log('email of =====>', req.user?.email, 'vs ====>', email);
+        // console.log('email of =====>', req.user?.email, 'vs ====>', email);
         if (email !== req.user?.email) {
           return res.status(403).send({ message: 'forbidden access' })
         }
@@ -302,7 +302,7 @@ async function run() {
       try{
         const {price} = req.body;
         const amount = parseInt(price * 100);
-        console.log(amount, 'amount inside value');
+        // console.log(amount, 'amount inside value');
         const paymentIntent = await stripe.paymentIntents.create({
           amount: amount,
           currency:'usd',
@@ -319,22 +319,28 @@ async function run() {
 
     // payment related api 
 
-    app.get('/payments/:email', verifyToken, async (req,res) => {
-      const query = req.params.email;
+
+    app.get('/payments/:email',verifyToken, async (req,res) => {
+      const query = { email: req.params.email};
+      console.log(query);
+      // console.log('payment user email--->',req?.user?.email);
       if(req?.params?.email !== req?.user?.email){
         return res.status(403).send({message:'forbidden access'})
       }
       const result = await paymentCollection.find(query).toArray();
       res.send(result);
     } )
+
+
+
     app.post('/payments', async(req,res) => {
       try{
         const payment = req.body;
         const paymentResult = await paymentCollection.insertOne(payment);
 
+        // console.log('peyment information--->', payment);
+        
         // carefully delete each item from the cart
-
-        console.log('peyment information--->', payment);
         const query = { _id: {
           $in:payment.cartIds.map(id => new ObjectId(id))
         }}
@@ -346,6 +352,106 @@ async function run() {
         console.log(err);
       }
     })
+    // app.get('/payments', async(req,res) => {
+    //   const result = await paymentCollection.find().toArray();
+    //   res.send(result);
+    // })
+
+    // stats or analytics 
+
+    app.get('/admin-stats',verifyToken,verifyToken, async(req,res) =>{
+      try{
+        const users = await userCollection.estimatedDocumentCount();
+        const menuItems = await menuCollection.estimatedDocumentCount();
+        const orders = await paymentCollection.estimatedDocumentCount();
+
+
+        // this is the not best away ,,,,
+
+        // const payments = await paymentCollection.find().toArray();
+        // const revenue = payments.reduce((total,payment) => total + payment.price, 0)
+
+        const result = await paymentCollection.aggregate([
+          {
+            $group: {
+              // kare diye group korbo
+              _id: null,
+              // grouping kore ki korbe
+              totalRevenue: {
+                $sum: '$price'
+              }
+            }
+          }
+        ]).toArray();
+        const revenue = result?.length > 0 ? result[0].totalRevenue : 0 ;
+
+        res.send({users,menuItems, orders,revenue});
+      }
+      catch(err){
+        console.log(err);
+      }
+    })
+
+
+    // order status (ber korar tecnique)
+    /***
+     * ----------------------
+     * NON-Efficient Way
+     * ---------------------
+     * 1. load all the payments
+     * 2. for every menuItemIds(which is an array), go find the item from menuCollection
+     * 3. for every item in the menu Collection that you found from a payment entry(document)
+     */
+
+// using aggregate pipeline
+app.get('/order-stats',verifyToken, verfyAdmin,  async(req,res) => {
+  const result = await paymentCollection.aggregate([
+    {
+      // kon id diye khujbo seta
+      $unwind: '$menuItemIds'
+    },
+    {
+      // dekhar jonno
+      $lookup: {
+        // ata kar sathe milabo or kotha theke milabo (seta)
+        from:'menu',
+        // kar sathe milbe se 
+        localField:'menuItemIds',
+        // ki milbe seta 
+        foreignField: '_id',
+        // jodi onno akta name dite chai 
+        as:'menuItems'
+
+      }
+    },
+    {
+      // j menuItems ta k ak jagay ba upore niye aslam
+      $unwind: '$menuItems'
+    },
+    {
+      // akta element a convert kora
+      $group: {
+        _id:'$menuItems.category',
+        quantity: { $sum: 1 },
+        revenue: {
+          $sum: '$menuItems.price'
+        }
+      }
+    },
+    {
+      $project : {
+        _id: 0,
+        category: '$_id',
+        quantity:'$quantity',
+        revenue: '$revenue'
+      }
+    }
+  ]).toArray();
+  res.send(result);
+})
+
+
+
 
     console.log("Pinged your deployment. You successfully connected to MongoDB!");
   } finally {
